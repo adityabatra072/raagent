@@ -3,6 +3,7 @@
 #import <EventKit/EventKit.h>
 #import <UserNotifications/UserNotifications.h>
 #import <UIKit/UIKit.h>
+#import <os/log.h>
 
 /**
  * RaagentTools (iOS) — native phone-control tools for the agent.
@@ -28,12 +29,23 @@ RCT_EXPORT_MODULE(RaagentTools);
 
 /**
  * Release builds don't wire JS console output to the device console, which
- * makes on-device QA blind. This forwards agent diagnostics to NSLog so they
- * show up in `idevicesyslog`.
+ * makes on-device QA blind. This forwards agent diagnostics to the unified
+ * log. %{public}@ matters: without it iOS redacts the message to <private>
+ * in the syslog relay and remote QA sees nothing but timestamps.
  */
+static os_log_t RaagentLog(void)
+{
+  static os_log_t log;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    log = os_log_create("ai.runanywhere.agent", "agent");
+  });
+  return log;
+}
+
 RCT_EXPORT_METHOD(log:(NSString *)message)
 {
-  NSLog(@"[raagent] %@", message);
+  os_log_with_type(RaagentLog(), OS_LOG_TYPE_DEFAULT, "[raagent] %{public}@", message);
 }
 
 // ---------------------------------------------------------------- torch
